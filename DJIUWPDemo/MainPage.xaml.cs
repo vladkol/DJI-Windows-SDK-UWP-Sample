@@ -18,16 +18,6 @@ using Windows.UI.Xaml.Navigation;
 
 namespace DJIDemo
 {
-    static class Extensions
-    {
-        public static float? ConvertJoystickValue(this double? value)
-        {
-            if (value.HasValue)
-                return (float?)(value * 100);
-            return null;
-        }
-    }
-
     public sealed partial class MainPage : Page
     {
         DJIClient djiClient = DJIClient.Instance;

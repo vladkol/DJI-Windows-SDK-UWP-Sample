@@ -5,6 +5,16 @@ using Windows.Storage.Streams;
 
 namespace DJIDemo
 {
+    static class Extensions
+    {
+        public static float? ConvertJoystickValue(this double? value)
+        {
+            if (value.HasValue)
+                return (float?)(value * 100);
+            return null;
+        }
+    }
+
     public class JoyStickValues
     {
         public JoyStickValues(double? throttle, double? roll, double? pitch, double? yaw)
