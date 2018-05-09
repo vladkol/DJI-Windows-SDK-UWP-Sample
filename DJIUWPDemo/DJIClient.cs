@@ -31,7 +31,7 @@ namespace DJIDemo
         public float? yaw;
     }
 
-    public sealed class DJIClient
+    public sealed class DJIClient : IDisposable
     {
         private static volatile DJIClient instance;
         private static object syncRoot = new Object();
@@ -163,6 +163,11 @@ namespace DJIDemo
                 IsConnected = connected;
                 ConnectedChanged?.Invoke(connected);
             }
+        }
+
+        public void Dispose()
+        {
+            UnInitialize();
         }
     }
 }

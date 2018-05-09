@@ -26,21 +26,8 @@ namespace DJIDemo
         {        
             this.InitializeComponent();
             viewModel = new MainPageViewModel(Dispatcher, djiClient);
-
-            Windows.ApplicationModel.Core.CoreApplication.Exiting += CoreApplication_Exiting;
-            Window.Current.Closed += Window_Closed;
         }
 
-        private void Window_Closed(object sender, Windows.UI.Core.CoreWindowEventArgs e)
-        {
-            UninitializeSDK();
-        }
-
-        private void CoreApplication_Exiting(object sender, object e)
-        {
-            UninitializeSDK();
-        }
-		
         private MainPageViewModel viewModel;
         public MainPageViewModel ViewModel => viewModel;
 
@@ -48,24 +35,9 @@ namespace DJIDemo
         {
             base.OnNavigatedTo(e);
 
-            djiClient.Initialize();
- 
             // Setup Joystick listener
             Task.Run(() => { ListenForJoystick(); });
         }
-
-        protected override void OnNavigatedFrom(NavigationEventArgs e)
-        {
-            base.OnNavigatedFrom(e);
-
-            djiClient.UnInitialize();
-        }
-
-        private void UninitializeSDK()
-        {
-            djiClient.UnInitialize();
-        }
-
 
         #region Joystick Controls
         // Take off button

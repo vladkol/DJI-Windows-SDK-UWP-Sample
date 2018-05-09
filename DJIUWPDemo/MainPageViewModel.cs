@@ -23,7 +23,6 @@ namespace DJIDemo
         private InkShapes.InkShapesModel mlModel = null;
         private Task runProcessTask = null;
 
-
         public MainPageViewModel(CoreDispatcher dispatcher, DJIClient djiClient)
         {
             this.Dispatcher = dispatcher;
@@ -34,6 +33,8 @@ namespace DJIDemo
             djiClient.AttitudeChanged += DjiClient_AttitudeChanged;
             djiClient.VelocityChanged += DjiClient_VelocityChanged;
             djiClient.FrameArived += DjiClient_FrameArived;
+
+            djiClient.Initialize();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
