@@ -21,7 +21,6 @@ namespace DJIDemo
     public sealed partial class MainPage : Page
     {
         DJIClient djiClient = DJIClient.Instance;
-        DateTime lastGimbleUpdate = DateTime.UtcNow - TimeSpan.FromMilliseconds(1000);
 	
         public MainPage()
         {        
@@ -30,21 +29,6 @@ namespace DJIDemo
 
             Windows.ApplicationModel.Core.CoreApplication.Exiting += CoreApplication_Exiting;
             Window.Current.Closed += Window_Closed;
-
-            djiClient.ConnectedChanged += DjiClient_ConnectedChanged;
-
-        }
-
-        private void DjiClient_ConnectedChanged(bool newValue)
-        {
-            if (newValue)
-            {
-                viewModel.GimbleAngle = 0;
-                Task.Run(() =>
-                {
-                    djiClient.SetGimbleAngle(viewModel.GimbleAngle);
-                });
-            }
         }
 
         private void Window_Closed(object sender, Windows.UI.Core.CoreWindowEventArgs e)
@@ -79,7 +63,7 @@ namespace DJIDemo
 
         private void UninitializeSDK()
         {
-            DJIClientNative.UninitializeDJISDK();
+            djiClient.UnInitialize();
         }
 
 
@@ -145,21 +129,6 @@ namespace DJIDemo
                 current.yaw = joystickItem.yaw ?? current.yaw;
                 djiClient.SetJoyStickValue((float)current.throttle, (float)current.roll, (float)current.pitch, (float)current.yaw);
             }
-        }
-
-
-        private async void Gimble_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
-        {
-            var diff = (int)(DateTime.UtcNow - lastGimbleUpdate).TotalMilliseconds;
-            if (diff < 100)
-                await Task.Delay(100 - diff);
-
-            var val = gimble.Value;
-            await Task.Run(() =>
-            {
-                djiClient.SetGimbleAngle(val);                    
-            });
-            lastGimbleUpdate = DateTime.UtcNow;
         }
         #endregion //Joystick Controls
     }

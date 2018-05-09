@@ -133,8 +133,8 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Spacing="24">
-            <Slider Height="148" Orientation="Vertical" ValueChanged="Gimble_ValueChanged" Visibility="{Binding ControlsVisible}"
-                    Minimum="-90" Maximum="0" Value="{Binding GimbleAngle}" x:Name="gimble" />
+            <Slider Height="148" Orientation="Vertical" Visibility="{Binding ControlsVisible}"
+                    Minimum="-90" Maximum="0" Value="{Binding GimbleAngle, Mode=TwoWay}" />
         </StackPanel>
 
     </Grid>

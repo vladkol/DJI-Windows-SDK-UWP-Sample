@@ -23,7 +23,7 @@ namespace DJIDemo
         private InkShapes.InkShapesModel mlModel = null;
         private Task runProcessTask = null;
 
- 
+
         public MainPageViewModel(CoreDispatcher dispatcher, DJIClient djiClient)
         {
             this.Dispatcher = dispatcher;
@@ -62,6 +62,7 @@ namespace DJIDemo
                 RaisepropertyChanged();
                 RaisepropertyChanged(nameof(ConnectedStatus));
                 RaisepropertyChanged(nameof(ControlsVisible));
+                GimbleAngle = 0;
             }
         }
 
@@ -91,18 +92,29 @@ namespace DJIDemo
             }
         }
 
-
-        private int gimpbleAngle = 0;
+        private int gimbleAngle = 0;
+        private int gimbleDelay = 100;
+        DateTime lastGimbleUpdate = DateTime.UtcNow.AddMinutes(-1);
         public int GimbleAngle
         {
             get
             {
-                return gimpbleAngle;
+                return gimbleAngle;
             }
             set
             {
-                gimpbleAngle = value;
+                gimbleAngle = value;
                 RaisepropertyChanged();
+                // only send a gimble change every gimbleDelay ms to limit noise
+                var diff = (int)(DateTime.UtcNow - lastGimbleUpdate).TotalMilliseconds;
+                if (diff > gimbleDelay)
+                {
+                    lastGimbleUpdate = DateTime.UtcNow;
+                    Task.Delay(gimbleDelay).ContinueWith((x) =>
+                    {
+                        djiClient.SetGimbleAngle(gimbleAngle);
+                    });
+                }
             }
         }
 
@@ -159,7 +171,8 @@ namespace DJIDemo
         public WriteableBitmap VideoSource
         {
             get { return videoSource; }
-            set {
+            set
+            {
                 if (videoSource != value)
                 {
                     videoSource = value;
@@ -195,7 +208,7 @@ namespace DJIDemo
         {
             double airSpeed = X * X + Y * Y + Z * Z;
             airSpeed = Math.Abs(airSpeed) > 0.0001 ? Math.Sqrt(airSpeed) : 0;
-            Velocity = airSpeed;            
+            Velocity = airSpeed;
         }
 
         private void DjiClient_AttitudeChanged(double pitch, double yaw, double roll)
