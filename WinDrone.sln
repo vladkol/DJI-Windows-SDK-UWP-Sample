@@ -3,12 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27428.2037
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DJIVideoParser", "DJIVideoParser\DJIVideoParser.vcxproj", "{8DA43E0C-A205-41FE-A35D-6C8DCB783563}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DJIUWPDemo", "DJIUWPDemo\DJIUWPDemo.csproj", "{5C822A6E-1A26-4967-A517-72A6452B1642}"
 	ProjectSection(ProjectDependencies) = postProject
 		{AB378D3C-2BB1-41E8-9EF9-BEFED238F705} = {AB378D3C-2BB1-41E8-9EF9-BEFED238F705}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DJIVideoParser", "DJIVideoParser\DJIVideoParser.vcxproj", "{8DA43E0C-A205-41FE-A35D-6C8DCB783563}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DJIClient", "DJIClient", "{8650FA60-C52D-4782-909C-445F08C472D3}"
 EndProject
