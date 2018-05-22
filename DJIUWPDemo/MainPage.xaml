@@ -25,6 +25,7 @@
     <Grid>
         <Image VerticalAlignment="Center" HorizontalAlignment="Center" Source="Assets/LogoBW.png" Height="600" Margin="0,80,0,0"/>
         <Image x:Name="videoElement" Stretch="UniformToFill" Source="{Binding VideoSource}" Visibility="{Binding ControlsVisible}"/>
+        <Image x:Name="recognitionResults" Stretch="UniformToFill" Source="{Binding RecognitionResultsImage}"/>
 
 
         <Grid VerticalAlignment="Top" 
@@ -42,8 +43,7 @@
                                         FontFamily="Segoe UI"
                                         FontSize="24"
                                         Text="{Binding ConnectedStatus}" />
-            <TextBlock x:Name="mlModelResult" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Margin="0,0,0,0" Text="{Binding RecognizedObjectText}"/>
-
+ 
             <StackPanel Grid.Column="1"
                         VerticalAlignment="Center"
                         Orientation="Horizontal"
@@ -137,5 +137,6 @@
                     Minimum="-90" Maximum="0" Value="{Binding GimbleAngle, Mode=TwoWay}" />
         </StackPanel>
 
+        <TextBlock x:Name="recognizedObject" Text="{Binding RecognizedObject}" FontSize="48" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12"/>
     </Grid>
 </Page>

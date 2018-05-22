@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
+using Windows.ApplicationModel.ExtendedExecution.Foreground;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.UI.Xaml;
@@ -21,7 +23,10 @@ namespace DJIDemo
     /// Provides application-specific behavior to supplement the default Application class.
     /// </summary>
     sealed partial class App : Application
-    {
+    { 
+        ExtendedExecutionForegroundSession _session;
+        Windows.System.Display.DisplayRequest _displayRequest;
+
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -37,7 +42,7 @@ namespace DJIDemo
         /// will be used such as when the application is launched to open a specific file.
         /// </summary>
         /// <param name="e">Details about the launch request and process.</param>
-        protected override void OnLaunched(LaunchActivatedEventArgs e)
+        protected override async void OnLaunched(LaunchActivatedEventArgs e)
         {
             Frame rootFrame = Window.Current.Content as Frame;
 
@@ -71,6 +76,16 @@ namespace DJIDemo
                 // Ensure the current window is active
                 Window.Current.Activate();
             }
+
+            if (_session == null)
+                await PreventFromSuspending();
+
+            if (_displayRequest == null)
+            {
+                _displayRequest = new Windows.System.Display.DisplayRequest();
+                _displayRequest.RequestActive();
+            }
+
         }
 
         /// <summary>
@@ -95,6 +110,36 @@ namespace DJIDemo
             var deferral = e.SuspendingOperation.GetDeferral();
             //TODO: Save application state and stop any background activity
             deferral.Complete();
+        }
+
+
+        private async Task PreventFromSuspending()
+        {
+            ExtendedExecutionForegroundSession newSession = new ExtendedExecutionForegroundSession();
+            newSession.Reason = ExtendedExecutionForegroundReason.Unconstrained;
+            newSession.Revoked += SessionRevoked;
+
+            ExtendedExecutionForegroundResult result = await newSession.RequestExtensionAsync();
+            switch (result)
+            {
+                case ExtendedExecutionForegroundResult.Allowed:
+                    _session = newSession;
+                    break;
+                default:
+                case ExtendedExecutionForegroundResult.Denied:
+                    newSession.Dispose();
+                    break;
+            }
+        }
+
+
+        private void SessionRevoked(object sender, ExtendedExecutionForegroundRevokedEventArgs args)
+        {
+            if (_session != null)
+            {
+                _session.Dispose();
+                _session = null;
+            }
         }
     }
 }

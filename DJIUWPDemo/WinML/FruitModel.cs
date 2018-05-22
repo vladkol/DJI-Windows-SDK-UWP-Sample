@@ -5,45 +5,48 @@ using Windows.Media;
 using Windows.Storage;
 using Windows.AI.MachineLearning.Preview;
 
-// InkShapes
+// Fruit
 
-namespace InkShapes
+namespace FruitWinML
 {
-    public sealed class InkShapesModelInput
+    public sealed class FruitModelInput
     {
         public VideoFrame data { get; set; }
     }
 
-    public sealed class InkShapesModelOutput
+    public sealed class FruitModelOutput
     {
         public IList<string> classLabel { get; set; }
         public IDictionary<string, float> loss { get; set; }
-        public InkShapesModelOutput(int lossCount)
+        public FruitModelOutput()
         {
             this.classLabel = new List<string>();
-            this.loss = new Dictionary<string, float>();
-            for (int i = 0; i < lossCount; i++)
+
+            this.loss = new Dictionary<string, float>()
             {
-                this.loss.Add(i.ToString(), float.NaN);
-            }
+                { "apple", float.NaN },
+                { "banana", float.NaN },
+                { "coconut", float.NaN },
+                { "orange", float.NaN },
+                { "passionfruit", float.NaN },
+                { "pineapple", float.NaN },
+                { "strawberry", float.NaN },
+            };
         }
     }
 
-    public sealed class InkShapesModel
+    public sealed class FruitModel
     {
-        private int _lossCount;
-
         private LearningModelPreview learningModel;
-        public static async Task<InkShapesModel> CreateInkShapesModel(StorageFile file, int lossCount)
+        public static async Task<FruitModel> CreateFruitModel(StorageFile file)
         {
             LearningModelPreview learningModel = await LearningModelPreview.LoadModelFromStorageFileAsync(file);
-            InkShapesModel model = new InkShapesModel();
+            FruitModel model = new FruitModel();
             model.learningModel = learningModel;
-            model._lossCount = lossCount;
             return model;
         }
-        public async Task<InkShapesModelOutput> EvaluateAsync(InkShapesModelInput input) {
-            InkShapesModelOutput output = new InkShapesModelOutput(_lossCount);
+        public async Task<FruitModelOutput> EvaluateAsync(FruitModelInput input) {
+            FruitModelOutput output = new FruitModelOutput();
             LearningModelBindingPreview binding = new LearningModelBindingPreview(learningModel);
             binding.Bind("data", input.data);
             binding.Bind("classLabel", output.classLabel);

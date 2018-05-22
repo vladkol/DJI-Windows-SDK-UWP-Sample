@@ -1,6 +1,11 @@
-﻿using System;
+﻿using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Brushes;
+using Microsoft.Graphics.Canvas.Text;
+using Microsoft.Graphics.Canvas.UI.Xaml;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -8,9 +13,12 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Windows.Graphics.Imaging;
 using Windows.Media;
+using Windows.Media.Core;
+using Windows.Media.Playback;
 using Windows.Storage.Streams;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 
 namespace DJIDemo
@@ -20,8 +28,13 @@ namespace DJIDemo
         private CoreDispatcher Dispatcher;
         private DJIClient djiClient;
 
-        private InkShapes.InkShapesModel mlModel = null;
+        private Windows.Media.SpeechSynthesis.SpeechSynthesizer speechSynthesizer = new Windows.Media.SpeechSynthesis.SpeechSynthesizer();
+        private string lastAudioTag = string.Empty;
+        private MediaPlayer player = new MediaPlayer();
+
+        private FruitWinML.FruitModel mlModel = null;
         private Task runProcessTask = null;
+
 
         public MainPageViewModel(CoreDispatcher dispatcher, DJIClient djiClient)
         {
@@ -35,7 +48,17 @@ namespace DJIDemo
             djiClient.FrameArived += DjiClient_FrameArived;
 
             djiClient.Initialize();
+
+            //speechSynthesizer.Voice = Windows.Media.SpeechSynthesis.SpeechSynthesizer.AllVoices();
+            player.AutoPlay = true;
+
+            Task.Run(async () =>
+            {
+                var file = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///WinML/Fruit.onnx"));
+                mlModel = await FruitWinML.FruitModel.CreateFruitModel(file);
+            });
         }
+
 
         public event PropertyChangedEventHandler PropertyChanged;
         private void RaisepropertyChanged([CallerMemberName] string propertyName = null)
@@ -167,8 +190,24 @@ namespace DJIDemo
             }
         }
 
-        private WriteableBitmap videoSource;
 
+        public string recognizedObject = string.Empty;
+        public string RecognizedObject
+        {
+            get
+            {
+                return recognizedObject;
+            }
+            set
+            {
+                recognizedObject = value;
+                RaisepropertyChanged();
+            }
+        }
+
+
+
+        private WriteableBitmap videoSource;
         public WriteableBitmap VideoSource
         {
             get { return videoSource; }
@@ -183,13 +222,13 @@ namespace DJIDemo
         }
 
 
-        private string recognizedObjectText;
-        public string RecognizedObjectText
+        private ImageSource recognitionResultsImage;
+        public ImageSource RecognitionResultsImage
         {
-            get { return recognizedObjectText; }
+            get { return recognitionResultsImage; }
             set
             {
-                recognizedObjectText = value;
+                recognitionResultsImage = value;
                 RaisepropertyChanged();
             }
         }
@@ -226,11 +265,7 @@ namespace DJIDemo
         {
             if (runProcessTask == null || runProcessTask.IsCompleted)
             {
-                // Do not forget to dispose it! In this sample, we dispose it in ProcessSoftwareBitmap
-                SoftwareBitmap bitmapToProcess = SoftwareBitmap.CreateCopyFromBuffer(buffer,
-                        BitmapPixelFormat.Bgra8, (int)width, (int)height, BitmapAlphaMode.Premultiplied);
-
-                runProcessTask = ProcessSoftwareBitmap(bitmapToProcess, timeStamp);
+                runProcessTask = InferenceModelOnFrameData(buffer, timeStamp, width, height);
                 // You may want to uncomment next line if want to wait until processing is done
                 //runProcessTask.Wait();
             }
@@ -243,16 +278,42 @@ namespace DJIDemo
                 }
 
                 buffer.CopyTo(VideoSource.PixelBuffer);
-
                 VideoSource.Invalidate();
             });
+
+
         }
 
+        private const int cropFrameWidth = 428;
+        private const int cropFrameHeight = 320;
+        private const int bytesPerPixel = 4;
 
-        private async Task ProcessSoftwareBitmap(SoftwareBitmap bitmap, ulong timeStamp)
+        private async Task InferenceModelOnFrameData(IBuffer frameBuffer, ulong timeStamp, uint width, uint height, bool doNotDispose = false)
         {
             // Here you can process your frame data 
             // Make sure you use Dispatcher.RunAsync for updating the UI 
+
+            // For the Fruit model, we compensate the lack of detection boxes by "zooming" in the frame to 428x320 
+
+            var frameArray = frameBuffer.ToArray();
+
+            int minX = ((int)width - cropFrameWidth) / 2;
+            int minY = ((int)height - cropFrameHeight) / 2;
+
+            var croppedArray = new byte[cropFrameWidth * cropFrameHeight * bytesPerPixel];
+            int stride = cropFrameWidth * bytesPerPixel;
+
+            for (int y = minY; y < minY + cropFrameHeight; y++)
+            {
+                int startIndex = y * (int)width * bytesPerPixel + minX * bytesPerPixel;
+
+                Array.Copy(frameArray, startIndex, croppedArray, (y-minY) * cropFrameWidth * bytesPerPixel, stride);
+            }
+
+            // Do not forget to dispose it! 
+            SoftwareBitmap bitmap = SoftwareBitmap.CreateCopyFromBuffer(croppedArray.AsBuffer(),
+                    BitmapPixelFormat.Bgra8, cropFrameWidth, cropFrameHeight, BitmapAlphaMode.Premultiplied);
+
 
             // But we will run evalustion of a WinML model 
             try
@@ -261,53 +322,64 @@ namespace DJIDemo
             }
             finally
             {
-                bitmap.Dispose();
+                if (!doNotDispose)
+                {
+                    bitmap.Dispose();
+                }
             }
         }
 
 
         private async Task RunModelOnBitmap(SoftwareBitmap bitmap)
         {
-            if (!Windows.Foundation.Metadata.ApiInformation.IsMethodPresent("Windows.Media.VideoFrame", "CreateWithSoftwareBitmap"))
-            {
-                return;
-            }
-
             using (VideoFrame frame = VideoFrame.CreateWithSoftwareBitmap(bitmap))
             {
-                if (mlModel == null)
-                {
-                    var file = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///WinML/InkShapesModel.onnx"));
-                    mlModel = await InkShapes.InkShapesModel.CreateInkShapesModel(file, 21);
-                }
-
-                InkShapes.InkShapesModelInput input = new InkShapes.InkShapesModelInput();
+                FruitWinML.FruitModelInput input = new FruitWinML.FruitModelInput();
                 input.data = frame;
+
+                var stopwatch = Stopwatch.StartNew();
                 var output = await mlModel.EvaluateAsync(input);
+                stopwatch.Stop();
+
+                string newRecognizedObject = " ";
 
                 if (output != null)
                 {
+                    Debug.WriteLine($"Inference completed with results. {1000f / stopwatch.ElapsedMilliseconds,4:f1} fps.");
 
-                    string recognizedTag = output.classLabel.First();
-                    float recognitionConfidence = output.loss.OrderByDescending(kv => kv.Value).First().Value;
+                    var mostConfidentResult = output.loss.OrderByDescending(kv => kv.Value).First();
+                    string recognizedTag = mostConfidentResult.Key;
+                    float recognitionConfidence = mostConfidentResult.Value;
 
-                    if (recognitionConfidence < 0.15f)
+                    // exclude "orange" because of a lot false positives 
+                    if (recognitionConfidence > 0.65f && recognizedTag != "orange")
                     {
-                        RecognizedObjectText = string.Empty;
-                    }
-                    else if (recognitionConfidence > 0.3f)
-                    {
-                        Debug.WriteLine("ML model evaluation result: {0} ({1})", recognizedTag, recognitionConfidence);
-                        RecognizedObjectText = "Recognized: " + recognizedTag;
+                        Debug.WriteLine($"Recognized {recognizedTag} with {recognitionConfidence} confidence.");
+                        newRecognizedObject = recognizedTag;
+
+                        if (lastAudioTag != recognizedTag || player.Source == null)
+                        {
+                            
+
+                            lastAudioTag = recognizedTag;
+                            var audioStream = await speechSynthesizer.SynthesizeTextToStreamAsync(recognizedTag);
+                            player.MediaEnded += Player_MediaEnded;
+                            player.Source = MediaSource.CreateFromStream(audioStream, audioStream.ContentType);
+                        }                       
                     }
                 }
 
-
+                if (!newRecognizedObject.Equals(RecognizedObject, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    RecognizedObject = newRecognizedObject.ToUpper();
+                }
             }
         }
 
-
-
-
+        private void Player_MediaEnded(MediaPlayer sender, object args)
+        {
+            player.MediaEnded -= Player_MediaEnded;
+            player.Source = null;
+        }
     }
 }
